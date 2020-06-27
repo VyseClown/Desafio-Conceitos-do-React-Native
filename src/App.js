@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 
+import api from './services/api';
+
 import {
   SafeAreaView,
   View,
@@ -10,29 +12,33 @@ import {
   TouchableOpacity,
 } from 'react-native';
 
-import api from './services/api';
-
 export default function App() {
   const [repositories, setRepositories] = useState([]);
 
   useEffect(() => {
-    api.get('/repositories').then((response) => {
-      setRepositories(response.data);
-    });
+    api
+      .get('/repositories')
+      .then((response) => setRepositories(response.data));
   }, []);
 
   async function handleLikeRepository(id) {
-    await api.post(`/repositories/${id}/like`);
+    const response = await api.post(`repositories/${id}/like`);
 
-    const newRepositories = repositories.map((repository) => {
-      if (repository.id === id) {
-        repository.likes += 1;
-      }
+    setRepositories(
+      repositories.map((repo) =>
+        repo.id === id ? response.data : repo
+      )
+    );
+  }
 
-      return repository;
-    });
+  async function handleDeleteRepository(id) {
+    await api.delete(`/repositories/${id}`);
 
-    setRepositories(newRepositories);
+    const filteredRepos = repositories.filter(
+      (repo) => repo.id !== id
+    );
+
+    setRepositories(filteredRepos);
   }
 
   return (
@@ -40,20 +46,16 @@ export default function App() {
       <StatusBar barStyle="light-content" backgroundColor="#7159c1" />
       <SafeAreaView style={styles.container}>
         <FlatList
+          style={styles.repositoryContainer}
           data={repositories}
-          keyExtractor={(repository) => repository.id}
-          renderItem={({ item: repository }) => (
-            <View style={styles.repositoryContainer}>
-              <Text style={styles.repository}>
-                {repository.title}
-              </Text>
+          keyExtractor={(repo) => repo.id}
+          renderItem={({ item: repo }) => (
+            <>
+              <Text style={styles.repository}>{repo.title}</Text>
 
               <View style={styles.techsContainer}>
-                {repository.techs.map((tech) => (
-                  <Text
-                    key={`${tech} - ${Date.now()}`}
-                    style={styles.tech}
-                  >
+                {repo.techs.map((tech) => (
+                  <Text key={tech} style={styles.tech}>
                     {tech}
                   </Text>
                 ))}
@@ -62,22 +64,29 @@ export default function App() {
               <View style={styles.likesContainer}>
                 <Text
                   style={styles.likeText}
-                  testID={`repository-likes-${repository.id}`}
+                  testID={`repository-likes-${repo.id}`}
                 >
-                  {`${repository.likes} ${
-                    repository.likes === 1 ? 'like' : 'likes'
-                  }`}
+                  {repo.likes} curtidas
                 </Text>
               </View>
 
-              <TouchableOpacity
-                style={styles.button}
-                onPress={() => handleLikeRepository(repository.id)}
-                testID={`like-button-${repository.id}`}
-              >
-                <Text style={styles.buttonText}>Curtir</Text>
-              </TouchableOpacity>
-            </View>
+              <View style={styles.buttonsContainer}>
+                <TouchableOpacity
+                  style={styles.likeButton}
+                  onPress={() => handleLikeRepository(repo.id)}
+                  testID={`like-button-${repo.id}`}
+                >
+                  <Text style={styles.buttonLikeText}>Curtir</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.deleteButton}
+                  onPress={() => handleDeleteRepository(repo.id)}
+                  testID={`like-button-${repo.id}`}
+                >
+                  <Text style={styles.buttonDeleteText}>Remover</Text>
+                </TouchableOpacity>
+              </View>
+            </>
           )}
         />
       </SafeAreaView>
@@ -123,15 +132,29 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginRight: 10,
   },
-  button: {
+  buttonsContainer: {
+    flexDirection: 'row',
+  },
+  likeButton: {
     marginTop: 10,
   },
-  buttonText: {
+  deleteButton: {
+    marginTop: 10,
+  },
+  buttonLikeText: {
     fontSize: 14,
     fontWeight: 'bold',
     marginRight: 10,
     color: '#fff',
     backgroundColor: '#7159c1',
+    padding: 15,
+  },
+  buttonDeleteText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginRight: 10,
+    color: '#fff',
+    backgroundColor: 'red',
     padding: 15,
   },
 });
